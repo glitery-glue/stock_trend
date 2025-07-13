@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Sentiment Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .input-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .analyze-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+        }
+        
+        .analyze-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            padding: 40px;
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #3498db;
+        }
+        
+        .result-card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .stock-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .info-item .label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .info-item .value {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        
+        .sentiment-card {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .sentiment-card.positive {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+        
+        .sentiment-card.neutral {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        
+        .tendency-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .tendency-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .tendency-item .category {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .tendency-item .count {
+            font-size: 1.2em;
+            color: #3498db;
+            font-weight: 700;
+        }
+        
+        .top-posts {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .post-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .post-score {
+            font-weight: 600;
+            color: #e74c3c;
+            margin-bottom: 5px;
+        }
+        
+        .post-text {
+            color: #555;
+            line-height: 1.4;
+        }
+        
+        .trend-indicator {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .trend-bullish {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .trend-bearish {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .trend-neutral {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .input-section, .results {
+                padding: 20px;
+            }
+            
+            .info-item {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 Stock Sentiment Analysis</h1>
+            <p>Analyze Reddit sentiment and stock data for informed trading decisions</p>
+        </div>
+        
+        <div class="input-section">
+            <form id="analysisForm">
+                <div class="input-group">
+                    <label for="stockSymbol">Stock Symbol</label>
+                    <input 
+                        type="text" 
+                        id="stockSymbol" 
+                        name="stockSymbol" 
+                        placeholder="e.g., AAPL, RELIANCE" 
+                        required
+                    >
+                </div>
+                
+                <div class="input-group">
+                    <label for="stockType">Stock Market</label>
+                    <select id="stockType" name="stockType" required>
+                        <option value="">Select Market</option>
+                        <option value="USA">USA</option>
+                        <option value="India">India</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="analyze-btn" id="analyzeBtn">
+                    🔍 Analyze Sentiment
+                </button>
+            </form>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing sentiment and fetching stock data...</p>
+        </div>
+        
+        <div class="results" id="results">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        // Sample data for demonstration
+        const sampleData = {
+            'AAPL': {
+                stock_symbol: 'AAPL',
+                sentiment: {
+                    Success: true,
+                    Sentiment: 0.65,
+                    Tendency: {
+                        'very positive': 12,
+                        'positive': 25,
+                        'neutral': 8,
+                        'negative': 5,
+                        'very negative': 2
+                    },
+                    'post count': 52,
+                    'Top Post': [
+                        { text: 'Apple earnings are looking great this quarter! Strong iPhone sales and services growth.', score: 156 },
+                        { text: 'AAPL hitting new highs. The ecosystem is unbeatable.', score: 134 },
+                        { text: 'Love the new MacBook Pro lineup. Apple stock is a solid long-term hold.', score: 98 },
+                        { text: 'Apple Pay adoption is accelerating globally. Bullish on AAPL.', score: 87 },
+                        { text: 'Tim Cook doing amazing work. Apple stock undervalued at current levels.', score: 76 }
+                    ],
+                    Trend: {
+                        trend: 'Bullish',
+                        current_sentiment: 0.68
+                    }
+                },
+                stock_data: {
+                    'current price': 185.25,
+                    'currency': 'USD'
+                }
+            },
+            'RELIANCE': {
+                stock_symbol: 'RELIANCE',
+                sentiment: {
+                    Success: true,
+                    Sentiment: 0.32,
+                    Tendency: {
+                        'very positive': 5,
+                        'positive': 15,
+                        'neutral': 20,
+                        'negative': 12,
+                        'very negative': 3
+                    },
+                    'post count': 55,
+                    'Top Post': [
+                        { text: 'Reliance Jio is dominating the telecom sector. Strong fundamentals.', score: 89 },
+                        { text: 'RIL diversification into retail and digital is paying off well.', score: 76 },
+                        { text: 'Reliance Industries showing steady growth in petrochemicals.', score: 65 },
+                        { text: 'Mukesh Ambani vision for digital India is impressive.', score: 58 },
+                        { text: 'Reliance stock looks good for long term investment.', score: 52 }
+                    ],
+                    Trend: {
+                        trend: 'Neutral',
+                        current_sentiment: 0.28
+                    }
+                },
+                stock_data: {
+                    'current price': 2450.75,
+                    'currency': 'INR'
+                }
+            }
+        };
+
+        document.getElementById('analysisForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const stockSymbol = document.getElementById('stockSymbol').value.trim().toUpperCase();
+            const stockType = document.getElementById('stockType').value;
+            
+            if (!stockSymbol || !stockType) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+            
+            // Simulate API call
+            setTimeout(() => {
+                const data = sampleData[stockSymbol];
+                
+                if (data) {
+                    displayResults(data);
+                } else {
+                    displayError(`No data found for ${stockSymbol}. Try AAPL or RELIANCE for demo.`);
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }, 2000);
+        });
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const sentiment = data.sentiment;
+            const stockData = data.stock_data;
+            
+            // Determine sentiment class
+            let sentimentClass = 'negative';
+            if (sentiment.Sentiment > 0.3) sentimentClass = 'positive';
+            else if (sentiment.Sentiment > -0.1) sentimentClass = 'neutral';
+            
+            // Determine trend class
+            let trendClass = 'trend-neutral';
+            if (sentiment.Trend.trend === 'Bullish') trendClass = 'trend-bullish';
+            else if (sentiment.Trend.trend === 'Bearish') trendClass = 'trend-bearish';
+            
+            resultsDiv.innerHTML = `
+                <div class="result-card">
+                    <h3>📊 Stock Overview</h3>
+                    <div class="stock-info">
+                        <div class="info-item">
+                            <div class="label">Stock Symbol</div>
+                            <div class="value">${data.stock_symbol}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">Current Price</div>
+                            <div class="value">${stockData['current price']} ${stockData.currency}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">Posts Analyzed</div>
+                            <div class="value">${sentiment['post count']}</div>
+                        </div>
+                        <div class="info-item sentiment-card ${sentimentClass}">
+                            <div class="label">Sentiment Score</div>
+                            <div class="value">${sentiment.Sentiment.toFixed(3)}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>💭 Sentiment Analysis</h3>
+                    <p><strong>Overall Trend:</strong> <span class="trend-indicator ${trendClass}">${sentiment.Trend.trend}</span></p>
+                    <p><strong>Current Sentiment:</strong> ${sentiment.Trend.current_sentiment.toFixed(3)}</p>
+                    
+                    <h4 style="margin-top: 20px; margin-bottom: 10px;">Sentiment Distribution</h4>
+                    <div class="tendency-grid">
+                        ${Object.entries(sentiment.Tendency).map(([category, count]) => `
+                            <div class="tendency-item">
+                                <div class="category">${category}</div>
+                                <div class="count">${count}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>🔥 Top Posts</h3>
+                    <div class="top-posts">
+                        ${sentiment['Top Post'].map(post => `
+                            <div class="post-item">
+                                <div class="post-score">Score: ${post.score}</div>
+                                <div class="post-text">${post.text}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        function displayError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="error">
+                    <h3>❌ Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
